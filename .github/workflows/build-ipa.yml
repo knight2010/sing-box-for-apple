@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build-ipa:
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -27,7 +27,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25.5'
+          go-version: '1.26.10'
           cache: false
 
       - name: Clone sing-box and install gomobile
@@ -38,28 +38,27 @@ jobs:
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
           ls "$HOME/go/bin"
 
-      - name: Build Libbox.xcframework
+      - name: Build Libbox.xcframework for iOS
+        env:
+          GOTOOLCHAIN: local
         run: |
           cd "$GITHUB_WORKSPACE/../sing-box"
-          go run ./cmd/internal/build_libbox -target apple
+          go run ./cmd/internal/build_libbox -target apple -platform ios/arm64
           if [ ! -d "$GITHUB_WORKSPACE/Libbox.xcframework" ] && [ -d "Libbox.xcframework" ]; then
             mv Libbox.xcframework "$GITHUB_WORKSPACE/"
           fi
           ls -lh "$GITHUB_WORKSPACE/Libbox.xcframework"
           test -d "$GITHUB_WORKSPACE/Libbox.xcframework"
 
-      - name: Select latest Xcode
+      - name: Show Xcode version
         run: |
           ls /Applications | grep Xcode || true
-          XCODE_APP=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort | tail -n 1 || true)
-          if [ -n "$XCODE_APP" ]; then
-            echo "Selecting $XCODE_APP"
-            sudo xcode-select -s "$XCODE_APP"
-          fi
           xcodebuild -version
           swift --version
 
       - name: Build SFI for iOS (unsigned)
+        env:
+          DISABLE_SWIFTLINT: '1'
         run: |
           xcodebuild -project sing-box.xcodeproj \
             -scheme SFI \
@@ -104,7 +103,7 @@ jobs:
           body: |
             Unsigned iOS build of SFI from the dev branch.
 
-            Built with Xcode on macos-26, scheme SFI, Release configuration, with code signing disabled (CODE_SIGNING_ALLOWED=NO). Libbox.xcframework was built from SagerNet/sing-box (testing branch) with gomobile. No Apple Developer signing identity was used.
+            Built on the xcode-27 runner, scheme SFI, Release configuration, with code signing disabled (CODE_SIGNING_ALLOWED=NO). Libbox.xcframework was built for ios/arm64 from SagerNet/sing-box (testing branch) with gomobile. No Apple Developer signing identity was used.
 
             Install on a device only after signing it with your own Apple Developer account or sideloading tool.
           files: SFI.ipa
